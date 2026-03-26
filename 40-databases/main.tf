@@ -41,7 +41,7 @@ resource "aws_instance" "redis" {
   ami = local.ami_id
   instance_type = "t3.micro"
   subnet_id = local.database_subnet_id
-  vpc_security_group_ids = [ local.redis_sg_id ]
+  vpc_security_group_ids = [local.redis_sg_id]
 
   tags = merge(
     {
@@ -80,7 +80,7 @@ resource "aws_instance" "mysql" {
   ami = local.ami_id
   instance_type = "t3.micro"
   subnet_id = local.database_subnet_id
-  vpc_security_group_ids = [ local.mysql_sg_id ]
+  vpc_security_group_ids = [local.mysql_sg_id]
   iam_instance_profile = aws_iam_instance_profile.mysql.name # What is the use of this line of code ?
 
   tags = merge(
@@ -120,7 +120,7 @@ resource "aws_instance" "rabbitmq" {
   ami = local.ami_id
   instance_type = "t3.micro"
   subnet_id = local.database_subnet_id
-  vpc_security_group_ids = [ local.rabbitmq_sg_id ]
+  vpc_security_group_ids = [local.rabbitmq_sg_id]
 
   tags = merge(
     {

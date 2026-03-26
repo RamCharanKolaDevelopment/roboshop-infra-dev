@@ -12,7 +12,7 @@ locals {
     mysql_sg_id = data.aws_ssm_parameter.mysql_sg_id.value
     rabbitmq_sg_id = data.aws_ssm_parameter.rabbitmq_sg_id.value
     mysql_role_name = join("-", [
-            for name in ["${var.project}","${var.environment}", "mysql"] : title(name)
+            for name in ["${var.project}","${var.environment}", "mysql"] : title(name) # title function is used to convert the first letter of each word to uppercase and rest to lowercase, join function is used to concatenate the list of strings with a separator which is - in this case
         ])
     mysql_policy_name = join("", [
             for name in ["${var.project}","${var.environment}", "mysql"] : title(name)
