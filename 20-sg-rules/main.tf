@@ -4,8 +4,8 @@ resource "aws_security_group_rule" "bastion_internet" { # bastion allowing traff
   from_port = 22
   to_port = 22
   protocol = "tcp"
-#   cidr_blocks = ["0.0.0.0/0"]  # This will accept traffice from any IP address, my_ip will be changed every day so that this will helps to accept traffic but my_ip is best practice
-  cidr_blocks = [local.my_ip]
+  cidr_blocks = ["0.0.0.0/0"]  # This will accept traffice from any IP address, my_ip will be changed every day so that this will helps to accept traffic but my_ip is best practice
+  # cidr_blocks = [local.my_ip] # using this would be best practice
   # which SG you are creating this rule
   security_group_id = local.bastion_sg_id
 }
@@ -323,7 +323,7 @@ resource "aws_security_group_rule" "frontend_alb_public" { # frontend_alb allowi
 }
 
 # Open VPN
-resource "aws_security_group_rule" "openvpn_public_443" {
+resource "aws_security_group_rule" "openvpn_public_443" { # OpenVPN allowing traffic or requests from public through port number 443
   type              = "ingress"
   from_port         = 443
   to_port           = 443
@@ -334,7 +334,7 @@ resource "aws_security_group_rule" "openvpn_public_443" {
 }
 
 # Admin UI
-resource "aws_security_group_rule" "openvpn_public_943" {
+resource "aws_security_group_rule" "openvpn_public_943" { # OpenVPN allowing traffic or requests from OpenVPN Client through port number 943
   type              = "ingress"
   from_port         = 943
   to_port           = 943
@@ -344,7 +344,7 @@ resource "aws_security_group_rule" "openvpn_public_943" {
   security_group_id = local.openvpn_sg_id
 }
 
-resource "aws_security_group_rule" "backend_alb_openvpn" {
+resource "aws_security_group_rule" "backend_alb_openvpn" { # Backend ALB allowing traffic or requests from OpenVPN
   type              = "ingress"
   from_port         = 80
   to_port           = 80
