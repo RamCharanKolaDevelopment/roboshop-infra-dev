@@ -58,3 +58,49 @@ cd 50-backend-alb
 terraform init
 terraform apply -auto-approve
 ```
+
+---
+
+## Troubleshooting / Quick‑Check Commands
+
+The Backend ALB is internal, so you need to run the checks from a host that can resolve the private DNS (e.g., the bastion host or any EC2 instance inside the VPC).
+
+### 1️⃣ Verify the ALB DNS name resolves to an internal address
+```bash
+dig +short *.backend-alb-${var.environment}.${var.domain_name}
+```
+You should see one or more private IPs belonging to the ALB.
+
+### 2️⃣ Check the listener is healthy via the AWS CLI
+```bash
+aws elbv2 describe-listeners \
+    --load-balancer-arn $(terraform output -raw backend_alb_arn) \
+    --query 'Listeners[?Port==`80`].{Port:Port,State:State.Code}' \
+    --output table
+```
+The `State` should be `active`.
+
+### 3️⃣ Verify the target groups for backend services are healthy
+Replace `<tg-arn>` with the ARN of the target group you want to inspect (you can get it from `terraform output -json` or the console).
+```bash
+aws elbv2 describe-target-health \
+    --target-group-arn <tg-arn> \
+    --query 'TargetHealthDescriptions[*].{Id:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}' \
+    --output table
+```
+All targets should report `healthy`. If you see `unhealthy`, check the instance logs, security‑group rules, and the health‑check path configured for that service.
+
+### 4️⃣ End‑to‑end health‑check for a backend microservice (e.g., Catalogue)
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://catalogue.backend-alb-${var.environment}.${var.domain_name}/health
+```
+The command should return `200`. A different status code indicates the service is not responding or the health‑check path is mis‑configured.
+
+### 5️⃣ One‑liner that combines DNS resolve, listener state, and a sample health check
+```bash
+echo "=== DNS resolve ===" && dig +short *.backend-alb-${var.environment}.${var.domain_name}
+echo "=== Listener state ===" && aws elbv2 describe-listeners --load-balancer-arn $(terraform output -raw backend_alb_arn) --query 'Listeners[?Port==`80`].State.Code' --output text
+echo "=== Catalogue health ===" && curl -s -o /dev/null -w "%{http_code}\n" http://catalogue.backend-alb-${var.environment}.${var.domain_name}/health
+```
+
+Adjust `${var.environment}` and `${var.domain_name}` to match your workspace (you can retrieve them via `terraform output`).

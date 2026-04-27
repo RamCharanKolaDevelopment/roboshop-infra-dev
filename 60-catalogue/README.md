@@ -144,7 +144,24 @@ Typical successful output:
 
 If the unit name differs, adjust the command accordingly (e.g., `catalogue-app.service`).
 
-### 5. End‑to‑end health check via the ALB DNS name
+### 5. Health Check 
+
+```bash
+ssh ec2-user@$INSTANCE_DNS "curl http://localhost:8080/health"
+```
+
+Typical successful output:
+
+```
+●   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100    25  100    25    0     0  12500      0 --:--:-- --:--:-- --:--:-- 12500
+{"app":"OK","mongo":true}
+```
+
+If the unit name differs, adjust the command accordingly (e.g., `/catalogue-health-check`).
+
+### 6. End‑to‑end health check via the ALB DNS name
 
 The Backend ALB DNS can be obtained from Terraform output:
 
@@ -164,3 +181,68 @@ The command should return `200`. A different status code indicates the health en
 3. **Port check** – `netstat -tlnp | grep ':8080'` on an instance.
 4. **Systemd status** – `sudo systemctl status catalogue.service` on the instance.
 5. **End‑to‑end** – `curl http://<alb-dns>/catalogue/health` – expect `200`.
+     * For the **dev** environment you can also run the concrete URL directly:
+         ```bash
+         curl http://catalogue.backend-alb-dev.aitechapp.fun/health
+         ```
+         This should return a JSON payload with a `200` HTTP status indicating the catalogue service is healthy.
+
+---
+
+## Database Connectivity Quick‑Check Commands
+
+The Catalogue service depends on the four stateful databases provisioned in the **40‑databases** layer. Below are handy one‑liners you can run from a bastion host (or any machine that can resolve the private DNS names) to verify that the Catalogue instance can reach each database.
+
+### 1️⃣ MongoDB (port 27017)
+```bash
+ssh ec2-user@catalogue-${var.environment}.${var.domain_name} "
+    echo '=== MongoDB DNS resolve ==='
+    dig +short mongodb-${var.environment}.${var.domain_name}
+    echo '=== MongoDB socket ==='
+    netstat -tlnp | grep ':27017' || echo 'No listener on 27017'
+    echo '=== mongo ping ==='
+    mongo --eval 'db.runCommand({ping:1})' || echo 'mongo client not available'
+"
+```
+
+### 2️⃣ Redis (port 6379)
+```bash
+ssh ec2-user@catalogue-${var.environment}.${var.domain_name} "
+    echo '=== Redis DNS resolve ==='
+    dig +short redis-${var.environment}.${var.domain_name}
+    echo '=== Redis socket ==='
+    netstat -tlnp | grep ':6379' || echo 'No listener on 6379'
+    echo '=== redis-cli ping ==='
+    redis-cli PING || echo 'redis-cli not available'
+"
+```
+
+### 3️⃣ MySQL (port 3306)
+```bash
+ssh ec2-user@catalogue-${var.environment}.${var.domain_name} "
+    echo '=== MySQL DNS resolve ==='
+    dig +short mysql-${var.environment}.${var.domain_name}
+    echo '=== MySQL socket ==='
+    netstat -tlnp | grep ':3306' || echo 'No listener on 3306'
+    echo '=== mysqladmin ping ==='
+    mysqladmin ping -u root -p'${MYSQL_ROOT_PASSWORD}' || echo 'mysqladmin not available'
+"
+```
+
+### 4️⃣ RabbitMQ (port 5672, optional UI 15672)
+```bash
+ssh ec2-user@catalogue-${var.environment}.${var.domain_name} "
+    echo '=== RabbitMQ DNS resolve ==='
+    dig +short rabbitmq-${var.environment}.${var.domain_name}
+    echo '=== RabbitMQ socket (5672) ==='
+    netstat -tlnp | grep ':5672' || echo 'No listener on 5672'
+    echo '=== rabbitmqctl status ==='
+    sudo rabbitmqctl status || echo 'rabbitmqctl not available'
+    echo '=== Management UI (15672) ==='
+    netstat -tlnp | grep ':15672' && curl -I http://localhost:15672/api/overview || echo 'UI not enabled or unreachable'
+"
+```
+
+**Replace** `${var.environment}`, `${var.domain_name}`, and `${MYSQL_ROOT_PASSWORD}` with the appropriate values for your environment (you can retrieve them via `terraform output`).
+
+These commands let you quickly confirm DNS resolution, listening sockets, and basic client connectivity for each backing database from the perspective of a running Catalogue instance.
